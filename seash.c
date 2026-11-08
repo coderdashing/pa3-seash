@@ -157,14 +157,22 @@ int main() {
         char *token = strtok(buffer, " \t");
         while (token != NULL && argc < 64) {
             argv[argc++] = token;
-            token = strtok(NULL, " \t");
+            
+			token = strtok(NULL, " \t");
         }
         if (argc > 0) {
             const char* command = argv[0];
-            const char* arg = (argc > 1) ? argv[1] : NULL;
+            char* arg;
+			for(int i = 1; i < argc; i++){
+				if(i > 1)
+					strcat(arg," ");
+				strcat(arg,argv[i]);
+
+			}
             int result = fork_and_wait(command, arg);
             if (result == 0) printf("Parent: child completed\n");
         }
     }
     return 0;
 }
+
