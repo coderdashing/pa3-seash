@@ -147,23 +147,24 @@ int write_history(const char *filepath, const char *command)
          }
      }
  };
-int main(){
+int main() {
     char buffer[1001];
-    while (fgets(buffer, sizeof(buffer), stdin) != NULL)
-    {
+    while(fgets(buffer, sizeof(buffer), stdin) != NULL) {
         size_t len = strlen(buffer);
-        if (len > 0 && buffer[len - 1] == '\n') buffer[len - 1] = '\0';
-        char copy[1001];
-        strcpy(copy, buffer);
+        if (len > 0 && buffer[len-1] == '\n') buffer[len-1] = '\0';
+        char* argv[64];
         int argc = 0;
-        char *token = strtok(copy, " \t");
-        while (token != NULL)
-        {
-            argc++;
+        char *token = strtok(buffer, " \t");
+        while (token != NULL && argc < 64) {
+            argv[argc++] = token;
             token = strtok(NULL, " \t");
         }
-        int result = run_exit(argc);
-        if (result == -1) continue;
+        if (argc > 0) {
+            const char* command = argv[0];
+            const char* arg = (argc > 1) ? argv[1] : NULL;
+            int result = fork_and_wait(command, arg);
+            if (result == 0) printf("Parent: child completed\n");
+        }
     }
     return 0;
 }
