@@ -29,6 +29,7 @@ int fork_and_wait(const char* command, const char* arg) {
     }
     printf("pid = %d\n",pid);
     if(pid == 0){
+		const char *args[3] = {command,arg,NULL};
         if(!arg || arg == NULL){
             execlp(command,command,NULL);
         }
@@ -42,7 +43,7 @@ int fork_and_wait(const char* command, const char* arg) {
     else{
         int status;
         waitpid(pid, &status,0);
-        printf("pid = %d; status = %d\n",pid,status);
+    //    printf("pid = %d; status = %d\n",pid,status);
 
     }
     return 0;
@@ -149,7 +150,9 @@ int write_history(const char *filepath, const char *command)
  };
 int main() {
     char buffer[1001];
+	printf("you@🐚 /home/you/cse29/pa3$$ ");
     while(fgets(buffer, sizeof(buffer), stdin) != NULL) {
+
         size_t len = strlen(buffer);
         if (len > 0 && buffer[len-1] == '\n') buffer[len-1] = '\0';
         char* argv[64];
@@ -160,6 +163,7 @@ int main() {
             
 			token = strtok(NULL, " \t");
         }
+		argv[argc+1] = NULL;
         if (argc > 0) {
             const char* command = argv[0];
             char* arg;
@@ -169,9 +173,13 @@ int main() {
 				strcat(arg,argv[i]);
 
 			}
-            int result = fork_and_wait(command, arg);
-            if (result == 0) printf("Parent: child completed\n");
+			//if(argc >= 3 && argv[2] == "&"){
+
+           	int result = fork_and_wait(command, arg);
+           	if (result == 0) printf("Parent: child completed\n");
+			//}
         }
+		printf("you@🐚 /home/you/cse29/pa3$ ");
     }
     return 0;
 }
