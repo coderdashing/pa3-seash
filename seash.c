@@ -148,9 +148,9 @@ int write_history(const char *filepath, const char *command)
          }
      }
  };
-int main() {
+int main(int argc, char *argv[]) {
     char buffer[1001];
-	printf("you@🐚 /home/you/cse29/pa3$$ ");
+	printf("student@🐚 /tmp/seash-sandbox$ ");
     while(fgets(buffer, sizeof(buffer), stdin) != NULL) {
 
         size_t len = strlen(buffer);
@@ -179,7 +179,7 @@ int main() {
            	if (result == 0) printf("Parent: child completed\n");
 			//}
         }
-		printf("you@🐚 /home/you/cse29/pa3$ ");
+		printf("student@🐚 /tmp/seash-sandbox$ ");
     }
     return 0;
 }
