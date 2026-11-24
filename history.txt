@@ -1,73 +1,64 @@
+history -c
+
+ls
+
 history
-echo
-history
-history
-
-cd
-
-echo test
-
-cd owej
-
-cd
-
-hisotry woief
-
-history oiwfhe
-
-exit woj
-
-cd ofwij doij
 
 pwd
 
-ls
-
-exit
-
-exit
-
-exit
-
-exit
-
-exit
+history
 
 ls
-
+cd ..
+cd -
+cd ..
+cd -
 cd pa3-seash
-
-history
-
-$ sleep 1
-
-history
-
 ls
-
+cd -
+quit
+quit
+viim seash.c
+viim seash.c
+cd ..
+cd pa3-seash
+cd -
+mkdir test/test
+cd -
 ls
-
-pwd
-
-pwd
-
+$?
 ls
-
+$?
+$? ifw
+$? wpdf
+cd oiwjhf
+$?
+cd fake
+$?
 ls
-
+$?
+ls oij
+$?
+cd woi
+$?
 ls
-
-sleep 4
-
-echo "sleep process over"
-
-pwd
-
-273                 if(write_history("./history.txt",old) == -1)
-
-274                     perror("history");
-
-true &
-
-sleep 1 &
-
+ls ofiu
+$?
+ls foiu
+ls owfiui
+ls
+ls
+$?
+cd dop
+$?
+ls owfu
+$?
+ls
+$?
+ls
+$?
+ls
+ls
+$?
+exit sdioj
+$?

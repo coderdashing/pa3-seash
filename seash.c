@@ -49,22 +49,17 @@ int write_history(const char *filepath, const char *command)
           perror("open");
           return -1;
       }
-     fprintf(f,"%s\n",command);
+     fprintf(f,"%s",command);
      fclose(f); 
      return 0;
  }
  int read_history(const char *filepath)
    {
        // TODO: Open file in read mode
-     // If fopen fails, call perror("open") and return -1
-     // Read lines with fgets and print with line numbers
-     // Format: "line_number command"
-     // Close file
-     // Return 0 on success
      FILE* f = fopen(filepath,"r");
      if(f == NULL || ferror(f)){
          perror("open");
-         return -1;
+         return 2;
      }
      char buffer[2048];
      char *line;
@@ -74,7 +69,7 @@ int write_history(const char *filepath, const char *command)
          if(!line){
              break;
          }
-         printf("%d %s",i,line);
+         printf("%s",line);
          i++;
      }
      return 0;
@@ -89,12 +84,12 @@ int write_history(const char *filepath, const char *command)
      if(argc == 2 && path != NULL){
          if(chdir(path) != 0){
              perror("cd");
-             return -1;
+             return 1;
          }
          return 0;
      }
      fprintf(stderr,"usage: cd <path>\n");
-     return -1;
+     return 1;
  }
   int run_exit(int argc)
    {
@@ -106,7 +101,7 @@ int write_history(const char *filepath, const char *command)
       waitpid(pid,&status, 0);
       if(argc != 1){
           fprintf(stderr,"usage: exit\n");
-          return -1;
+          return 1;
      }
 
      if(WIFEXITED(status)&& WEXITSTATUS(status) == 0){
@@ -114,7 +109,7 @@ int write_history(const char *filepath, const char *command)
          return 0;
      }
       fprintf(stderr,"usage: exit\n");
-      return -1;
+      return 1;
  }
   void prompt_command_loop(){
        // implement this function
@@ -145,7 +140,7 @@ int fork_run_command(const char command[], char *args[]){
         perror("fork failed");
         
         exit(1);
-        return 0;
+        return -1;
     } 
     if (pid == 0) {
         // 1. Child calls exec
@@ -153,7 +148,7 @@ int fork_run_command(const char command[], char *args[]){
         
     // 2. Fallback exit (only reached if exec fails, e.g., bad command)
         perror(command);
-        return -1; 
+        return 1; 
     } else {
         // 3. Parent waits for the exec'd child to finish
         int status;
@@ -182,6 +177,8 @@ int main(int argc, char *argv[]) {
 		isShell = 1;
 	}
 	char *prompt;
+	int lastexit;
+	char lastcd[1001];
 	if(isShell)
 		prompt = "student@🐚 /tmp/seash-sandbox/";
 	else
@@ -194,6 +191,9 @@ int main(int argc, char *argv[]) {
 	}
 	printf("%s%s$",prompt,strstr(cwd,"cse29/"));
     char old[1001];
+	//
+	//FILE *f = fopen("./shell.sh","r");
+	//fclose(f);
 	while(fgets(buffer, sizeof(buffer), stdin) != NULL) {
 		strcpy(old,buffer);
         size_t len = strlen(buffer);
@@ -214,27 +214,48 @@ int main(int argc, char *argv[]) {
 			
 			
 			if(strcmp(command,"cd") == 0){
-				if(argc == 1 ||  (isShell == 1 && argc > 0 && strcmp(argv[0],"&") != 0 ) || (isShell == 0 && argc != 2 && strcmp(argv[2],"&")!= 0)){
+				if(argc == 1){
+
 					rightform = 0;
 					perror("cd");
 
 				}
+				else if(argc != 2){
+					if(argc == 3 & strcmp(argv[2],"&") == 0){
+
+					}
+					else{
+						rightform = 0;
+						perror("cd");
+					}
+				}
+
 				else{
 					strcpy(arg,argv[1]);
-					if(run_cd(argc,arg) != 0)
+					if(strcmp(arg,"-") == 0 ){
+						lastexit = run_cd(argc,lastcd);
+					}
+					else
+						lastexit = run_cd(argc,arg);
+					if(lastexit != 0)
 						perror("cd");
 				}
+				strcpy(lastcd,arg);
 				if(write_history("./history.txt",old) == -1)
 					perror("history");
 			}
 			else if (strcmp(command,"history") == 0){
 					
 
-				if(argc > 2 && strcmp(argv[2],"&") != 0){
+				if(argc > 2){
+					if(argc == 3 & strcmp(argv[2],"&") == 0){
 
-						
-					perror("history");
-					rightform = 0;
+					}
+					else{
+
+						perror("history");
+						rightform = 0;
+					}
 				}
 				else if (argc == 2){
 
@@ -251,13 +272,20 @@ int main(int argc, char *argv[]) {
 					
 
 					}
-					else if (strcmp(argv[1],"&") != 0){
+					else if (strcmp(argv[1],"&") == 0){
+
+					}
+					else {
 						perror("history");
 						rightform = 0;
 					}
-					else if(read_history("./history.txt") == -1){
+				}
+				else{
+					lastexit = read_history("./history.txt");
+					if(lastexit != 0){
 						perror("history");
 						rightform = 0;
+				
 					}
 				}
 				if(write_history("./history.txt",old) == -1)
@@ -265,7 +293,8 @@ int main(int argc, char *argv[]) {
 			}
 		
 			else if(strcmp(command,"exit") == 0){
-				if(run_exit(argc) == -1){
+				lastexit = run_exit(argc);
+				if(lastexit != 0){
 					perror("exit");
 					rightform = 0;
 				}
@@ -274,22 +303,39 @@ int main(int argc, char *argv[]) {
 					perror("history");
 			}
 			else if (strcmp(command,"pwd") == 0){
-				if(argc != 1){
+				if(argc == 2 && strcmp(argv[1],"&") == 0){
+
+				}else if (argc != 1){
 
 					perror("pwd");
 					rightform = 0;
 				}
 				else{
 
-					printf("%s%s\n",prompt,strstr(cwd,"cse29"));
+					printf("%s%s\n",strstr(prompt,"/home"),strstr(cwd,"cse29"));
 				}
 
 				if(write_history("./history.txt",old) == -1)
 					perror("history");
 			}
+			else if (strcmp(command,"$?") == 0){
+				if(argc == 2 && strcmp(argv[1],"&")== 0){
+
+				}
+				else if (argc != 1){
+					perror("$?");
+				}
+				else{
+					printf("%d\n",lastexit);
+				}
+				if(write_history("./history.txt",old) == -1)
+					perror("history");
+			}
 			else{
-				if(fork_run_command(command,argv) == -1)
+				lastexit = fork_run_command(command,argv);
+				if(lastexit != 0){
 					perror(command);
+				}
 				if(write_history("./history.txt",old) == -1)
 					perror("history");
 			}
@@ -300,7 +346,8 @@ int main(int argc, char *argv[]) {
 			if(run_exit(1) == -1)
 				return -1;
 		}
-		printf("%s%s$",prompt,strstr(cwd,"cse29"));
+		if(!isShell)
+			printf("%s%s$",prompt,strstr(cwd,"cse29"));
     }
 
 	
