@@ -5,17 +5,6 @@
 #include <sys/wait.h>
 
 
-int test_chdir(const char *path)
-{
-    // TODO: Try to chdir(path)
-    // If it fails, call perror("cd") and return -1
-    // If success, return 0
-    
-    if(chdir(path) == 0){
-        return 0;
-    }
-    return -1;
-}
 int fork_and_wait(const char* command, const char* arg) {
     // TODO: Fork a child process
     // Child: execute command with arg using execlp
@@ -29,7 +18,7 @@ int fork_and_wait(const char* command, const char* arg) {
     }
     printf("pid = %d\n",pid);
     if(pid == 0){
-		const char *args[3] = {command,arg,NULL};
+		
         if(!arg || arg == NULL){
             execlp(command,command,NULL);
         }
@@ -61,7 +50,7 @@ int write_history(const char *filepath, const char *command)
           return -1;
       }
      fprintf(f,"%s\n",command);
-     fclose(f);
+     fclose(f); 
      return 0;
  }
  int read_history(const char *filepath)
@@ -119,6 +108,7 @@ int write_history(const char *filepath, const char *command)
           fprintf(stderr,"usage: exit\n");
           return -1;
      }
+
      if(WIFEXITED(status)&& WEXITSTATUS(status) == 0){
         exit(EXIT_SUCCESS);
          return 0;
@@ -148,11 +138,64 @@ int write_history(const char *filepath, const char *command)
          }
      }
  };
+int fork_run_command(const char command[], char *args[]){
+    // Implement the run_ls function here!
+   pid_t pid = fork();
+    if (pid < 0) {
+        perror("fork failed");
+        
+        exit(1);
+        return 0;
+    } 
+    if (pid == 0) {
+        // 1. Child calls exec
+        execvp(args[0], args);
+        
+    // 2. Fallback exit (only reached if exec fails, e.g., bad command)
+        perror(command);
+        return -1; 
+    } else {
+        // 3. Parent waits for the exec'd child to finish
+        int status;
+        waitpid(pid, &status, 0); 
+    }
+
+}
+int run_command(const char command[],char *args[]){
+	execvp(args[0], args);
+	// 2. Fallback exit (only reached if exec fails, e.g., bad command)
+	perror("execvp");
+		
+	return -1;
+}
 int main(int argc, char *argv[]) {
     char buffer[1001];
-	printf("student@🐚 /tmp/seash-sandbox$ ");
-    while(fgets(buffer, sizeof(buffer), stdin) != NULL) {
-
+	int isShell;
+	if(argc == 1){
+		isShell = 0;
+	}
+	else{
+		if(argc != 2)
+			return -1;
+		if(argv[1] != "./seash")
+			return -1;
+		isShell = 1;
+	}
+	char *prompt;
+	if(isShell)
+		prompt = "student@🐚 /tmp/seash-sandbox/";
+	else
+		prompt = "you@🐚 /home/you/";
+	char cwd[120];
+	
+	if(getcwd(cwd,sizeof(cwd)) == NULL){
+		if(run_exit(1) == -1)
+			return -1;
+	}
+	printf("%s%s$",prompt,strstr(cwd,"cse29/"));
+    char old[1001];
+	while(fgets(buffer, sizeof(buffer), stdin) != NULL) {
+		strcpy(old,buffer);
         size_t len = strlen(buffer);
         if (len > 0 && buffer[len-1] == '\n') buffer[len-1] = '\0';
         char* argv[64];
@@ -160,27 +203,107 @@ int main(int argc, char *argv[]) {
         char *token = strtok(buffer, " \t");
         while (token != NULL && argc < 64) {
             argv[argc++] = token;
-            
-			token = strtok(NULL, " \t");
-        }
-		argv[argc+1] = NULL;
+            token = strtok(NULL, " \t");
+        	
+		}
+		argv[argc] = NULL;
         if (argc > 0) {
             const char* command = argv[0];
-            char* arg;
-			for(int i = 1; i < argc; i++){
-				if(i > 1)
-					strcat(arg," ");
-				strcat(arg,argv[i]);
+            char arg[1001];
+			int rightform = 1;
+			
+			
+			if(strcmp(command,"cd") == 0){
+				if(argc == 1 ||  (isShell == 1 && argc > 0 && strcmp(argv[0],"&") != 0 ) || (isShell == 0 && argc != 2 && strcmp(argv[2],"&")!= 0)){
+					rightform = 0;
+					perror("cd");
 
+				}
+				else{
+					strcpy(arg,argv[1]);
+					if(run_cd(argc,arg) != 0)
+						perror("cd");
+				}
+				if(write_history("./history.txt",old) == -1)
+					perror("history");
 			}
-			//if(argc >= 3 && argv[2] == "&"){
+			else if (strcmp(command,"history") == 0){
+					
 
-           	int result = fork_and_wait(command, arg);
-           	if (result == 0) printf("Parent: child completed\n");
-			//}
-        }
-		printf("student@🐚 /tmp/seash-sandbox$ ");
+				if(argc > 2 && strcmp(argv[2],"&") != 0){
+
+						
+					perror("history");
+					rightform = 0;
+				}
+				else if (argc == 2){
+
+					if(strcmp(argv[1],"-c") == 0){
+						FILE *f = fopen("./history.txt","w");
+						if(f == NULL || ferror(f)){
+
+							perror("open");
+							rightform = 0;
+							perror("history");
+						 }
+						fclose(f);
+							
+					
+
+					}
+					else if (strcmp(argv[1],"&") != 0){
+						perror("history");
+						rightform = 0;
+					}
+					else if(read_history("./history.txt") == -1){
+						perror("history");
+						rightform = 0;
+					}
+				}
+				if(write_history("./history.txt",old) == -1)
+					perror("history");
+			}
+		
+			else if(strcmp(command,"exit") == 0){
+				if(run_exit(argc) == -1){
+					perror("exit");
+					rightform = 0;
+				}
+				
+				if(write_history("./history.txt",old) == -1)
+					perror("history");
+			}
+			else if (strcmp(command,"pwd") == 0){
+				if(argc != 1){
+
+					perror("pwd");
+					rightform = 0;
+				}
+				else{
+
+					printf("%s%s\n",prompt,strstr(cwd,"cse29"));
+				}
+
+				if(write_history("./history.txt",old) == -1)
+					perror("history");
+			}
+			else{
+				if(fork_run_command(command,argv) == -1)
+					perror(command);
+				if(write_history("./history.txt",old) == -1)
+					perror("history");
+			}
+
+			
+		}
+		if(getcwd(cwd,sizeof(cwd)) == NULL){
+			if(run_exit(1) == -1)
+				return -1;
+		}
+		printf("%s%s$",prompt,strstr(cwd,"cse29"));
     }
+
+	
     return 0;
 }
 

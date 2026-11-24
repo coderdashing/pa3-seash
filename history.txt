@@ -1,0 +1,73 @@
+history
+echo
+history
+history
+
+cd
+
+echo test
+
+cd owej
+
+cd
+
+hisotry woief
+
+history oiwfhe
+
+exit woj
+
+cd ofwij doij
+
+pwd
+
+ls
+
+exit
+
+exit
+
+exit
+
+exit
+
+exit
+
+ls
+
+cd pa3-seash
+
+history
+
+$ sleep 1
+
+history
+
+ls
+
+ls
+
+pwd
+
+pwd
+
+ls
+
+ls
+
+ls
+
+sleep 4
+
+echo "sleep process over"
+
+pwd
+
+273                 if(write_history("./history.txt",old) == -1)
+
+274                     perror("history");
+
+true &
+
+sleep 1 &
+
