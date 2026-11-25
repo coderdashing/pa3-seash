@@ -1,1 +1,13 @@
 Discussion of how you used LLMs/AI tools, who you collaborated with here, etc.
+AI prompt response on code feedback:
+"Here is the updated seash.c with all obvious/mechanical FIXX items resolved directly in the code, leaving only the 4 core logic blocks (FIXX#4 through FIXX#8) for the student to complete.
+Summary of What Was Fixed vs. Remaining FIXX Markers
+Fixed Directly in Code:
+Added #include <pwd.h> (FIXX#4a) and dynamic ~/.seash_history path construction (FIXX#4b).
+Fixed fork_run_command (FIXX#1a, FIXX#1b, FIXX#1c): exact perror("fork") message without exiting the shell, exit(EXIT_FAILURE) when execvp fails, and returning WEXITSTATUS(status) on the normal path.
+Wired up interactive vs. batch mode argc parsing (FIXX#7a), reading from input (FIXX#7b), and the dynamic prompt (FIXX#4c).
+Fixed history and history -c (FIXX#6c), simplified the cd call in main (FIXX#5b), and verified &background stripping (FIXX#2).
+Remaining FIXX Markers for the Student to Implement:
+FIXX#4 (run_cd): Implement cd <path> and cd - (saving curr before chdir, printing on cd -, and updating lastcd / has_prev_cd only on success).
+FIXX#5 (Clean History Logging in main): Join cmd_argv[0..cmd_argc-1] with single spaces and call write_history(hist_path, clean_cmd) when !isShell.
+FIXX#8 ($? Built-in in main): Check !has_prev_cmd || cmd_argc != 1 for usage_error(), otherwise print lastexit without modifying lastexit or has_prev_cmd."
