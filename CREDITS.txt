@@ -1,4 +1,288 @@
 Discussion of how you used LLMs/AI tools, who you collaborated with here, etc.
+inputted code (old draft):
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/wait.h>
+// FIXXX: Include <pwd.h> so you can call getpwuid(getuid()) to dynamically fetch
+// the current user's username (pw_name) for the prompt and home directory (pw_dir)
+// for locating ~/.seash_history.
+
+
+int test_chdir(const char *path)
+{
+    // FIXXX: Remove this unused starter/test function (or merge its logic into run_cd).
+    // Note that if chdir() fails, the spec requires calling perror("cd") before returning.
+    if(chdir(path) == 0){
+        return 0;
+    }
+    return -1;
+}
+
+int fork_and_wait(const char* command, const char* arg) {
+    // FIXXX: Update the function signature to accept the full NULL-terminated argument
+    // array (char *cmd_argv[]) and a background flag (int is_background), and return the
+    // child's exit status (or -1 on fork error) so main() can track $? properly.
+
+    pid_t pid = fork();
+    if(pid < 0){
+        // FIXXX: Exact error string required by the spec is perror("fork") (not "fork error").
+        // Also, do NOT call exit(1) when fork() fails—the spec says to continue to the next command.
+        perror("fork error");
+        exit(1);
+        return -1;
+    }
+
+    // FIXXX: Remove this debug printf! Any extra output will fail automated grading diffs.
+    printf("pid = %d\n",pid);
+
+    if(pid == 0){
+        // FIXXX: Do NOT use execlp() with only 1 argument—commands can have many arguments
+        // (e.g., "ls -a -l tests/"). Instead, pass cmd_argv directly to execvp(cmd_argv[0], cmd_argv).
+        const char *args[3] = {command,arg,NULL};
+        if(!arg || arg == NULL){
+            execlp(command,command,NULL);
+        }
+        else{
+            execlp(command,command,arg,NULL);
+        }
+
+        // FIXXX: If execvp() returns, it failed. The spec requires calling perror(cmd_argv[0])
+        // (not "execlp") and exiting the child with EXIT_FAILURE (not exit(0)!).
+        perror("execlp");
+        exit(0);
+    }
+    else{
+        int status;
+        // FIXXX: Only call waitpid(pid, &status, 0) when the command is NOT running in the
+        // background (&). For foreground commands, extract the exit code using
+        // WIFEXITED(status) ? WEXITSTATUS(status) : 1 so you can store it for $?.
+        // For background commands, skip waitpid() and treat the command's exit status as 0.
+        waitpid(pid, &status,0);
+    }
+    return 0;
+}
+
+int write_history(const char *filepath, const char *command)
+{
+    // FIXXX: This helper is in good shape! Make sure you call it in interactive mode
+    // (NOT in batch mode) for every non-empty command BEFORE executing the command
+    // (so typing "history" includes itself as the final entry).
+    FILE* f = fopen(filepath, "a");
+    if(f == NULL || ferror(f)){
+        perror("open");
+        // FIXXX: Spec states if fopen() fails on the history file, call perror("open")
+        // and exit with status 1.
+        return -1;
+    }
+    fprintf(f,"%s\n",command);
+    fclose(f);
+    return 0;
+}
+
+int read_history(const char *filepath)
+{
+    FILE* f = fopen(filepath,"r");
+    if(f == NULL || ferror(f)){
+        // FIXXX: Spec states if fopen() fails on the history file, call perror("open")
+        // and exit with status 1.
+        perror("open");
+        return -1;
+    }
+    char buffer[2048];
+    char *line;
+
+    // FIXXX: History line numbers must be 1-indexed (starting at 1, not 0).
+    int i = 0;
+    while(f && !ferror(f) && !feof(f)){
+        line = fgets(buffer,sizeof(buffer),f);
+        if(!line){
+            break;
+        }
+        printf("%d %s",i,line);
+        i++;
+    }
+    // FIXXX: Missing fclose(f) here—always close the file before returning!
+    return 0;
+}
+
+// FIXXX: Add a clear_history(const char *filepath) helper for "history -c" that
+// opens the file in write mode ("w") and closes it (or uses remove(filepath)).
+
+int run_cd(int argc, char *path)
+{
+    // FIXXX: Support "cd -" as well! Keep track of the previous working directory in a
+    // buffer (e.g., prev_dir) across loop iterations:
+    // - Before calling chdir(), save the current directory via getcwd().
+    // - If path is "-", check if a previous cd has happened in this session:
+    //     * If yes: chdir(prev_dir), print the new directory, and update prev_dir.
+    //     * If no: just print the current working directory.
+    // - Otherwise: chdir(path), and on success update prev_dir to the directory saved earlier.
+
+    if(argc == 2 && path != NULL){
+        if(chdir(path) != 0){
+            perror("cd");
+            return -1;
+        }
+        return 0;
+    }
+    // FIXXX: Exact usage error string required by the spec is:
+    // fprintf(stderr, "seash: Usage error\n");
+    fprintf(stderr,"usage: cd <path>\n");
+    return -1;
+}
+
+int run_exit(int argc)
+{
+    // FIXXX: Remove the uninitialized `pid_t pid;` and `waitpid(pid, &status, 0);`!
+    // Exiting the shell should NOT wait on an uninitialized PID.
+    // Simply check: if (argc != 1) -> print "seash: Usage error\n" to stderr and return -1.
+    // Otherwise -> call exit(EXIT_SUCCESS).
+    int status;
+    pid_t pid;
+    waitpid(pid,&status, 0);
+    if(argc != 1){
+        fprintf(stderr,"usage: exit\n");
+        return -1;
+    }
+    if(WIFEXITED(status)&& WEXITSTATUS(status) == 0){
+        exit(EXIT_SUCCESS);
+        return 0;
+    }
+    fprintf(stderr,"usage: exit\n");
+    return -1;
+}
+
+void prompt_command_loop(){
+    // FIXXX: Remove this unused prototype loop—it is never called and compares strings
+    // with `!=` instead of `strcmp()`.
+    char buffer[1000];
+    char *input;
+    char *factor;
+    int len;
+    while(input != "exit"){
+        input = fgets(buffer,sizeof(buffer),stdin);
+        if(input == NULL){
+            break;
+        }
+        len = strlen(input);
+        if(len >= 0 && input[len-1] == '\n'){
+            len--;
+            input[len] = '\0';
+        }
+        factor = strtok(input," \t");
+        if(factor != NULL){
+            printf("%s\n",factor);
+        }
+    }
+};
+
+int main(int argc, char *argv[]) {
+    char buffer[1001];
+
+    // FIXXX: Fix Interactive vs. Batch mode detection!
+    // Do NOT check for "<" or ".sh" or use `!=` to compare strings in C.
+    // Use `argc` passed to main():
+    // - If argc == 1: Interactive mode -> read from `stdin`, print prompts, record history.
+    // - If argc == 2: Batch mode -> open `argv[1]` with `fopen(argv[1], "r")`.
+    //     * If fopen returns NULL: call `perror(argv[1])` and `exit(1)`.
+    //     * Do NOT print prompts or record history in batch mode.
+    // - If argc > 2: print `fprintf(stderr, "Usage: ./seash [script]\n");` and `exit(1)`.
+    int isShell;
+    if(argc == 1){
+        isShell = 0;
+    }
+    else{
+        if(argc != 3)
+            return -1;
+        if(argv[1] != "<" || argv[2] != "./seash")
+            return -1;
+        isShell = 1;
+    }
+
+    // FIXXX: Do NOT hardcode usernames or paths like "student@🐚 /tmp/seash-sandbox"!
+    // Dynamically build the prompt in interactive mode using getpwuid(getuid())->pw_name
+    // and getcwd(cwd, sizeof(cwd)).
+    // Exact format required (note the space after $):
+    // printf("%s@🐚 %s$ ", pw->pw_name, cwd);
+    char *prompt;
+    if(isShell)
+        prompt = "student@🐚 /tmp/seash-sandbox";
+    else
+        prompt = "you@🐚 /home/you";
+    char cwd[120];
+
+    if(getcwd(cwd,sizeof(cwd)) == NULL){
+        if(run_exit(1) == -1)
+            return -1;
+    }
+    printf("%s%s$",prompt,cwd);
+
+    // FIXXX: Add state variables before the loop for the resubmission ($?) requirement:
+    // - `int last_status = 0;` (stores the exit code of the last executed command)
+    // - `int has_prev_cmd = 0;` (tracks whether at least one non-$? command has run)
+    // Also build the history file path once using getpwuid(getuid())->pw_dir + "/.seash_history".
+
+    // FIXXX: Read from the active input stream (either `stdin` or the batch `FILE*`), not always `stdin`.
+    while(fgets(buffer, sizeof(buffer), stdin) != NULL) {
+
+        size_t len = strlen(buffer);
+        if (len > 0 && buffer[len-1] == '\n') buffer[len-1] = '\0';
+
+        // FIXXX: Rename inner `argv` and `argc` (e.g., to `cmd_argv` and `cmd_argc`) so they
+        // do not shadow `main()`'s `argc` and `argv`!
+        char* argv[64];
+        int argc = 0;
+        char *token = strtok(buffer, " \t");
+        while (token != NULL && argc < 64) {
+            argv[argc++] = token;
+            token = strtok(NULL, " \t");
+        }
+
+        // FIXXX: Off-by-one bug! `argv[argc+1] = NULL;` leaves `argv[argc]` uninitialized
+        // with garbage memory, which will crash execvp(). Change this to `argv[argc] = NULL;`.
+        argv[argc+1] = NULL;
+
+        if (argc > 0) {
+            const char* command = argv[0];
+
+            // FIXXX: CRITICAL SEGFAULT BUG! `char* arg;` is an uninitialized pointer,
+            // and calling `strcat(arg, ...)` writes into random memory.
+            // You don't need to concatenate arguments into a single string for execvp()—just
+            // pass `cmd_argv` directly. (If building a single-space-separated line for
+            // write_history(), use a properly sized `char hist_line[1024] = "";` buffer).
+            char* arg;
+            for(int i = 1; i < argc; i++){
+                if(i > 1)
+                    strcat(arg," ");
+                strcat(arg,argv[i]);
+            }
+
+            // FIXXX: Step-by-step execution order inside `if (cmd_argc > 0)`:
+            // 1. If in interactive mode, append the space-separated command to ~/.seash_history.
+            // 2. Check built-in `$?` (Resubmission requirement):
+            //    - If `!has_prev_cmd` OR `cmd_argc != 1`: print `seash: Usage error\n` to stderr.
+            //    - Else: print `printf("%d\n", last_status);`.
+            //    - IMPORTANT: Do NOT overwrite `last_status` or `has_prev_cmd` when `$?` runs!
+            // 3. Check built-ins `exit`, `cd`, and `history` (and `history -c`):
+            //    - Call your helper functions instead of forking!
+            //    - Update `has_prev_cmd = 1` and set `last_status = 0` on success or `1` on failure/usage error.
+            // 4. Check for background execution (`&`):
+            //    - Use `strcmp(cmd_argv[cmd_argc - 1], "&") == 0` (never `==`).
+            //    - If true: set `is_background = 1`, set `cmd_argv[cmd_argc - 1] = NULL`, and decrement `cmd_argc`.
+            // 5. Run external program via `fork_and_wait(cmd_argv, is_background)` and save its
+            //    returned exit status into `last_status` (and set `has_prev_cmd = 1`).
+
+            int result = fork_and_wait(command, arg);
+
+            // FIXXX: Remove this debug printf! It will break automated grading tests.
+            if (result == 0) printf("Parent: child completed\n");
+        }
+
+        // FIXXX: Only print the prompt if in interactive mode (NOT
+
+
 AI prompt response on code feedback:
 "Looking at the Gradescope output, the student is very close to getting everything passing—every single test failure comes down to 9 specific bugs in seash.c. Notice that BG3, BG4, EO1, and PR3 are already passing!
 Here is the exact root-cause mapping from the Gradescope failures to the lines in seash.c, followed by the annotated code with // FIXX#1 through // FIXX#9 markers.
