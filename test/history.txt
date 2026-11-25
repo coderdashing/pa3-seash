@@ -1,8 +1,0 @@
-cd test
-cd test
-cd test
-cd test
-cd ..
-cd --
-cd -
-cd ..
