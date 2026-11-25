@@ -1,5 +1,33 @@
 Discussion of how you used LLMs/AI tools, who you collaborated with here, etc.
 AI prompt response on code feedback:
+"Looking at the Gradescope output, the student is very close to getting everything passing—every single test failure comes down to 9 specific bugs in seash.c. Notice that BG3, BG4, EO1, and PR3 are already passing!
+Here is the exact root-cause mapping from the Gradescope failures to the lines in seash.c, followed by the annotated code with // FIXX#1 through // FIXX#9 markers.
+Root-Cause Breakdown of Gradescope Failures
+Gradescope Failure
+Root Cause in Student's Code
+RU1, RU2, PA1–PA5 (echo: Success, ls: Success, echo: Invalid argument)
+In fork_run_command: (1) Parent falls off the end of the function with no return statement(returning random garbage like 1666 or non-zero!), and main() then runs if (lastexit != 0) perror(command); printing echo: Success! (2) When execvp fails in the child, it executes return 2; instead of exit(EXIT_FAILURE);—causing the child to become a second shell and causing the 5-second timeouts in EX1, EX2, BI3, PA6.
+ES1 ($? prints 1666 instead of 0)
+Same missing return in fork_run_command (plus lastexit isn't initialized, and $? doesn't check if a previous command ran yet).
+FK1 (fork failedinstead of fork, exits 1 instead of 0)
+fork_run_command calls perror("fork failed"); exit(1); instead of perror("fork"); return 1; (shell must continue, not exit).
+PA6 & BG2 (sh bgargs.sh a b &keeps [&])
+& is never stripped from argv before calling fork_run_command(..., 0), and 0 is hardcoded for isbg! Also, & alone (argc == 1) should run as a normal command (which fails execvp with &: No such file or directory), NOT as a background job.
+BG1 (zombies: 0instead of 1 or 2)
+Notice BG1 expects zombies to remain! In fork_run_command, when isbg == 1, the parent simply skips waitpid() so background children stay zombies until seash exits. Once & stripping and isbg are wired up, BG1 will pass automatically.
+BI1, BI2, PA3 (exit fails to exit or prints usage: exit)
+run_exit calls waitpid on an uninitialized pid_t pid;. Because waitpid fails with ECHILD, WIFEXITED(status) is false, so exit never exits and prints usage: exit + exit: No child processes!
+CD1–CD5, PW1, PR1–PR4 (/home/you/(null)and cd errors)
+1. Prompt hardcodes "you@🐚 /home/you/" and strstr(cwd, "cse29/") (which is NULL on Gradescope!). Must use getpwuid(getuid())->pw_name and full cwd.
+
+2. Delete the pwd built-in block (let /bin/pwd run).
+
+3. cd calls perror("cd") on usage errors instead of seash: Usage error, overwrites lastcd even when cd fails or is cd - with no prior cd, and doesn't print the directory on cd -.
+HI1–HI4 (./history.txtinstead of ~/.seash_history)
+History path is hardcoded to "./history.txt" instead of getpwuid(getuid())->pw_dir + "/.seash_history", read_history doesn't print 1-based line numbers or fclose(f), and write_history writes raw old (keeping extra spaces/tabs) instead of single-space-separated tokens.
+SM1–SM3 (Script mode prints prompt and exits 1)
+main() checks strstr(argv[1], ".sh"), prepends "./" to argv[1] (breaking paths), closes fimmediately, and has while (isShell == 0 && ...) so script mode never runs the loop!"
+
 "Here is the updated seash.c with all obvious/mechanical FIXX items resolved directly in the code, leaving only the 4 core logic blocks (FIXX#4 through FIXX#8) for the student to complete.
 Summary of What Was Fixed vs. Remaining FIXX Markers
 Fixed Directly in Code:
