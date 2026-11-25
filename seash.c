@@ -149,7 +149,7 @@ int main(int argc, char *argv[]) {
             char clean_cmd[1001] = "";
             if(!isShell){
                 for (int i = 0; i < cmd_argc; i++){
-                    strcat(clean_cmd,cmd_argc[i]);
+                    strcat(clean_cmd,cmd_argv[i]);
                     if(i < cmd_argc - 1)
                         strcat(clean_cmd," ");
                 }
