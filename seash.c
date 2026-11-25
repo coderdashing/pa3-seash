@@ -42,18 +42,23 @@ int run_cd(int cmd_argc, char *path, char *lastcd, int *has_prev_cd) {
         return 1;
     }
 
-    // FIXX#4 (MEDIUM - Built-in `cd` and `cd -`):
-    // 1. Save current directory BEFORE calling chdir():
-    //    `char curr[1024]; getcwd(curr, sizeof(curr));`
-    // 2. If `strcmp(path, "-") == 0`:
-    //    - If `!*has_prev_cd` (no prior `cd` in this session):
-    //      print `printf("%s\n", curr);` and return 0.
-    //    - Else: call `chdir(lastcd)`.
-    //      * If `!= 0`: call `perror("cd");` and return 1.
-    //      * If `== 0`: print `printf("%s\n", lastcd);`, copy `curr` into `lastcd` (`strcpy(lastcd, curr)`), and return 0.
-    // 3. Otherwise (normal path): call `chdir(path)`.
-    //    - If `!= 0`: call `perror("cd");` and return 1.
-    //    - If `== 0`: copy `curr` into `lastcd`, set `*has_prev_cd = 1;`, and return 0.
+    char curr[1024];
+    getcwd(curr,sizeof(curr));
+    if(strcmp(path,"-") == 0){
+        if(!*has_prev_cd){
+            printf("%s\n",curr);
+            return 0;
+        }
+        else{
+            if(chdir(lastcd) == 0){
+                printf("%s\n",lastcd);
+                strcpy(lastcd,curr);
+                return 0;
+            }
+            perror("cd");
+        }
+        
+    }
     return 0;
 }
 
@@ -141,17 +146,20 @@ int main(int argc, char *argv[]) {
         if (cmd_argc > 0) {
             const char *command = cmd_argv[0];
 
-            // FIXX#5 (MEDIUM - Clean History Logging in Interactive Mode):
-            // When `!isShell`, build a buffer `char clean_cmd[1001] = "";` by joining
-            // `cmd_argv[0]` through `cmd_argv[cmd_argc - 1]` separated by single spaces `" "`
-            // (so `"echo   a\t b"` becomes `"echo a b"`), then call:
-            // `write_history(hist_path, clean_cmd);`
-
+            char clean_cmd[1001] = "";
+            if(!isShell){
+                for (int i = 0; i < cmd_argc; i++){
+                    strcat(clean_cmd,cmd_argc[i]);
+                    if(i < cmd_argc - 1)
+                        strcat(clean_cmd,cmd_argc);
+                }
+            }
+            write_history(hist_path,clean_cmd);
             if (strcmp(command, "$?") == 0) {
-                // FIXX#8 (HIGH - Resubmission `$?` Command):
-                // 1. If `!has_prev_cmd || cmd_argc != 1`: call `usage_error();`
-                // 2. Else: print `printf("%d\n", lastexit);`
-                // 3. IMPORTANT: Do NOT overwrite `lastexit` or `has_prev_cmd` here!
+                if(!has_prev_cmd || cmd_argc != 1)
+                    usage_error();
+                else
+                    printf("%d\n",lastexit);
             }
             else if (strcmp(command, "exit") == 0) {
                 lastexit = run_exit(cmd_argc);
