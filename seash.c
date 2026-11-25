@@ -122,7 +122,7 @@ int main(int argc, char *argv[]) {
         if (!isShell) {
             struct passwd *pw = getpwuid(getuid());
             if (getcwd(cwd, sizeof(cwd)) != NULL && pw != NULL) {
-                printf("%s@🐚 %s$ ", pw->pw_name, cwd);
+                printf("%s@🐚 %s$ ", pw->pw_name,cwd);
                 fflush(stdout);
             }
         }
@@ -188,7 +188,8 @@ int main(int argc, char *argv[]) {
                 }
             }
             else if (strcmp(command,"pwd") == 0){
-                printf("%s\n",cwd);
+                if(getcwd(cwd,sizeof(cwd)) != NULL)
+                    printf("%s\n",cwd);
             }
             else {
                 int isbg = 0;
