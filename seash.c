@@ -56,6 +56,7 @@ int run_cd(int cmd_argc, char *path, char *lastcd, int *has_prev_cd) {
                 return 0;
             }
             perror("cd");
+            return 1;
         }
         
     }
@@ -185,6 +186,9 @@ int main(int argc, char *argv[]) {
                     usage_error();
                     lastexit = 1;
                 }
+            }
+            else if (strcmp(command,"pwd") == 0){
+                printf("%s\n",cwd);
             }
             else {
                 int isbg = 0;
