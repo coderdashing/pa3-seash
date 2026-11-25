@@ -47,7 +47,8 @@ int write_history(const char *filepath, const char *command)
       FILE* f = fopen(filepath, "a");
       if(f == NULL || ferror(f)){
           perror("open");
-          return -1;
+          exit(1);
+		  return -1;
       }
      fprintf(f,"%s",command);
      fclose(f); 
@@ -59,7 +60,8 @@ int write_history(const char *filepath, const char *command)
      FILE* f = fopen(filepath,"r");
      if(f == NULL || ferror(f)){
          perror("open");
-         return -1;
+         exit(1);
+		 return -1;
      }
      char buffer[2048];
      char *line;
@@ -133,7 +135,7 @@ int write_history(const char *filepath, const char *command)
          }
      }
  };
-int fork_run_command(const char command[], char *args[]){
+int fork_run_command(const char command[], char *args[],int isbg){
     // Implement the run_ls function here!
    pid_t pid = fork();
     if (pid < 0) {
@@ -149,7 +151,7 @@ int fork_run_command(const char command[], char *args[]){
     // 2. Fallback exit (only reached if exec fails, e.g., bad command)
         perror(command);
         return 2; 
-    } else {
+    } else if(isbg == 0){
         // 3. Parent waits for the exec'd child to finish
         int status;
         waitpid(pid, &status, 0); 
@@ -172,7 +174,7 @@ int main(int argc, char *argv[]) {
 	else{
 		if(argc != 2)
 			return -1;
-		if(argv[1] != "./seash")
+		if(strstr(argv[1],".sh") == NULL)
 			return -1;
 		isShell = 1;
 	}
@@ -192,12 +194,22 @@ int main(int argc, char *argv[]) {
 	printf("%s%s$",prompt,strstr(cwd,"cse29/"));
     char old[1001];
 	//
-	FILE* f = fopen("./shell.sh","r");
-	if(f == NULL || ferror(f))
-		perror("open");
-	else
-		fclose(f);
-	while(fgets(buffer, sizeof(buffer), stdin) != NULL) {
+	
+	if(isShell){
+		char filepath[1001];
+		strcat(filepath,"./");
+		strcat(filepath,argv[1]);
+		FILE* f = fopen(filepath,"r");
+		if(f == NULL || ferror(f)){
+
+		
+			perror("open");
+			exit(1);
+	}
+		else
+			fclose(f);
+	}
+	while((isShell == 0 && fgets(buffer, sizeof(buffer), stdin) != NULL)) {
 		strcpy(old,buffer);
         size_t len = strlen(buffer);
         if (len > 0 && buffer[len-1] == '\n') buffer[len-1] = '\0';
@@ -225,7 +237,6 @@ int main(int argc, char *argv[]) {
 				}
 				else if(argc != 2){
 					if(argc == 3 & strcmp(argv[2],"&") == 0){
-
 					}
 					else{
 						rightform = 0;
@@ -336,7 +347,7 @@ int main(int argc, char *argv[]) {
 					perror("history");
 			}
 			else{
-				lastexit = fork_run_command(command,argv);
+				lastexit = fork_run_command(command,argv,0);
 				if(lastexit != 0){
 					perror(command);
 				}

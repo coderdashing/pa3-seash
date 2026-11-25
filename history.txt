@@ -62,3 +62,15 @@ ls
 $?
 exit sdioj
 $?
+ls
+vim ex.sh
+$ $?
+$?
+$ $?
+ls
+ls
+ls
+ls
+ls
+ls
+ls
